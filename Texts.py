@@ -1,12 +1,17 @@
+import os
+import sys
 import streamlit as st
 import pandas as pd
 import numpy as np
 import altair as alt
 import pickle
-import os
 import zipfile
 
-# ✅ Check if scikit-learn is installed
+# ✅ Ensure installed packages are in PATH
+os.environ["PATH"] += os.pathsep + os.path.expanduser("~/.local/bin")
+sys.path.append(os.path.expanduser("~/.local/lib/python3.12/site-packages"))
+
+# ✅ Debugging scikit-learn installation
 st.write("🔍 Checking scikit-learn installation...")
 try:
     import sklearn
@@ -18,10 +23,10 @@ except ImportError:
         import sklearn
         st.success(f"✅ Scikit-learn installed successfully: {sklearn.__version__}")
     except ImportError:
-        st.error("❌ Failed to install scikit-learn. Please check your environment.")
+        st.error("❌ Scikit-learn is still not found. Try restarting the app.")
         st.stop()
 
-# Define file paths
+# ✅ Define file paths
 ZIP_PATH = "classifier_emotions_model.zip"
 MODEL_PATH = "classifier_emotions_model.pkl"
 
@@ -40,13 +45,13 @@ try:
     with open(MODEL_PATH, "rb") as f:
         pipe_lr = pickle.load(f)
 except ModuleNotFoundError:
-    st.error("❌ Required module `scikit-learn` is missing. Try restarting the app after installation.")
+    st.error("❌ Required module `scikit-learn` is missing. Try restarting the app.")
     st.stop()
 except Exception as e:
     st.error(f"❌ Error loading model: {str(e)}")
     st.stop()
 
-# Emotion labels
+# ✅ Emotion labels
 emotion_labels = {0: "joy", 1: "sadness", 2: "anger", 3: "fear", 4: "love", 5: "surprise"}
 emotions_emoji_dict = {"joy": "😊", "sadness": "😔", "anger": "😠", "fear": "😨", "love": "❤️", "surprise": "😮"}
 
