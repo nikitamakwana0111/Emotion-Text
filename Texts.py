@@ -1,10 +1,13 @@
+import os
 import streamlit as st
 import pandas as pd
 import numpy as np
 import altair as alt
 import pickle
-import os
 import zipfile
+
+# Ensure scikit-learn is installed
+os.system("pip install --no-cache-dir scikit-learn pandas numpy altair")
 
 # Define file paths
 ZIP_PATH = "classifier_emotions_model.zip"
@@ -22,10 +25,13 @@ if not os.path.exists(MODEL_PATH):
 
 # Load the model with error handling
 try:
+    import sklearn  # Explicitly import to verify installation
+    from sklearn.feature_extraction.text import CountVectorizer  # Example sklearn dependency
     with open(MODEL_PATH, "rb") as f:
         pipe_lr = pickle.load(f)
+    st.success("Model loaded successfully! ✅")
 except ModuleNotFoundError as e:
-    st.error("❌ Required module `scikit-learn` is missing. Install it using `pip install scikit-learn`.")
+    st.error("❌ scikit-learn is still missing. Try restarting the app after ensuring installation.")
     st.stop()
 except Exception as e:
     st.error(f"❌ Error loading model: {str(e)}")
@@ -81,4 +87,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
