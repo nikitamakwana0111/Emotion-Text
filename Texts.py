@@ -20,9 +20,16 @@ if not os.path.exists(MODEL_PATH):
         st.error(f"Model file not found: {ZIP_PATH}. Please upload it to GitHub.")
         st.stop()
 
-# Load the model
-with open(MODEL_PATH, "rb") as f:
-    pipe_lr = pickle.load(f)
+# Load the model with error handling
+try:
+    with open(MODEL_PATH, "rb") as f:
+        pipe_lr = pickle.load(f)
+except ModuleNotFoundError as e:
+    st.error("❌ Required module `scikit-learn` is missing. Install it using `pip install scikit-learn`.")
+    st.stop()
+except Exception as e:
+    st.error(f"❌ Error loading model: {str(e)}")
+    st.stop()
 
 # Emotion labels
 emotion_labels = {0: "joy", 1: "sadness", 2: "anger", 3: "fear", 4: "love", 5: "surprise"}
@@ -74,3 +81,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
