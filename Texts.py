@@ -1,24 +1,12 @@
 import subprocess
 import sys
 
-def clean_and_install():
-    print("🔍 Cleaning up corrupted installations...")
+def force_reinstall():
+    print("🔄 Force resetting the environment...")
+    subprocess.run([sys.executable, "-m", "pip", "install", "--no-cache-dir", "--force-reinstall", "scikit-learn", "numpy", "scipy", "joblib", "threadpoolctl"])
 
-    # Force uninstall any conflicting packages
-    packages = ["scikit-learn", "numpy", "scipy", "threadpoolctl", "joblib"]
-    for pkg in packages:
-        subprocess.run([sys.executable, "-m", "pip", "uninstall", "-y", pkg])
+force_reinstall()
 
-    print("✅ Reinstalling required dependencies...")
-    subprocess.run([sys.executable, "-m", "pip", "install", "--no-cache-dir", "scikit-learn", "numpy", "scipy", "joblib", "threadpoolctl"])
-
-    try:
-        import sklearn
-        print(f"✅ Scikit-learn installed successfully: {sklearn.__version__}")
-    except ImportError:
-        print("❌ Scikit-learn installation failed! Please restart the app.")
-
-clean_and_install()
 
 
 import os
