@@ -8,6 +8,18 @@ import pickle
 import zipfile
 import requests
 
+import subprocess
+import sys
+
+def debug_pip():
+    try:
+        result = subprocess.run([sys.executable, "-m", "pip", "list"], capture_output=True, text=True)
+        print("Installed packages:\n", result.stdout)
+    except Exception as e:
+        print("Error running pip list:", e)
+
+debug_pip()
+
 # ✅ Ensure installed packages are in PATH
 os.environ["PATH"] += os.pathsep + os.path.expanduser("~/.local/bin")
 sys.path.append(os.path.expanduser("~/.local/lib/python3.12/site-packages"))
