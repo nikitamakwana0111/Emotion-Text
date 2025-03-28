@@ -6,6 +6,7 @@ import numpy as np
 import altair as alt
 import pickle
 import zipfile
+import requests
 
 # ✅ Ensure installed packages are in PATH
 os.environ["PATH"] += os.pathsep + os.path.expanduser("~/.local/bin")
@@ -17,36 +18,65 @@ try:
     import sklearn
     st.write(f"✅ Scikit-learn version: {sklearn.__version__}")
 except ImportError:
-    st.error("❌ Scikit-learn is missing! Attempting to install...")
+    st.error("❌ Scikit-learn is missing! Installing...")
     os.system("pip install --no-cache-dir --force-reinstall scikit-learn")
     try:
         import sklearn
         st.success(f"✅ Scikit-learn installed successfully: {sklearn.__version__}")
     except ImportError:
-        st.error("❌ Scikit-learn is still not found. Try restarting the app.")
+        st.error("❌ Scikit-learn is still not found. Please restart the app.")
         st.stop()
 
 # ✅ Define file paths
 ZIP_PATH = "classifier_emotions_model.zip"
 MODEL_PATH = "classifier_emotions_model.pkl"
+MODEL_URL = "https://raw.githubusercontent.com/nikitamakwana0111/Emotion-Text/main/classifier_emotions_model.zip"
 
-# ✅ Unzip and extract the model if needed
-if not os.path.exists(MODEL_PATH):
-    if os.path.exists(ZIP_PATH):
+# ✅ Download and extract model if missing
+def download_model():
+    st.warning("Downloading model file...")
+    try:
+        response = requests.get(MODEL_URL, stream=True)
+        if response.status_code == 200 and "Content-Type" in response.headers and "zip" in response.headers["Content-Type"]:
+            with open(ZIP_PATH, "wb") as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+            st.success("✅ Download complete!")
+        else:
+            st.error("❌ Download failed: Invalid ZIP file. Please check the GitHub link or upload manually.")
+            st.stop()
+    except Exception as e:
+        st.error(f"❌ Model download failed: {str(e)}")
+        st.stop()
+
+def extract_model():
+    try:
         with zipfile.ZipFile(ZIP_PATH, 'r') as zip_ref:
             zip_ref.extractall()
         st.success("✅ Model extracted successfully!")
-    else:
-        st.error(f"❌ Model file not found: {ZIP_PATH}. Please upload it to GitHub.")
+    except zipfile.BadZipFile:
+        st.error("❌ Error: File is not a valid ZIP archive. Please check the model file.")
         st.stop()
+
+# ✅ Allow manual upload as a backup
+uploaded_file = st.file_uploader("Upload classifier_emotions_model.zip", type=["zip"])
+if uploaded_file is not None:
+    with open(ZIP_PATH, "wb") as f:
+        f.write(uploaded_file.getbuffer())
+    st.success("✅ Model uploaded successfully!")
+    extract_model()
+
+if not os.path.exists(MODEL_PATH):
+    if os.path.exists(ZIP_PATH):
+        extract_model()
+    else:
+        download_model()
+        extract_model()
 
 # ✅ Load the model with error handling
 try:
     with open(MODEL_PATH, "rb") as f:
         pipe_lr = pickle.load(f)
-except ModuleNotFoundError:
-    st.error("❌ Required module `scikit-learn` is missing. Try restarting the app.")
-    st.stop()
 except Exception as e:
     st.error(f"❌ Error loading model: {str(e)}")
     st.stop()
