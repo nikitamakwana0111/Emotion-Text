@@ -3,22 +3,40 @@ import pandas as pd
 import numpy as np
 import altair as alt
 import pickle
+import zipfile
+import os
 
-# Load trained model (Pickle format)
-with open("classifier_emotions_model.pkl", "rb") as f:   
+# Define model file paths
+ZIP_FILE_PATH = "classifier_emotions_model.zip"
+MODEL_FILE_PATH = "classifier_emotions_model.pkl"
+
+# Extract model from ZIP if necessary
+if not os.path.exists(MODEL_FILE_PATH):
+    if os.path.exists(ZIP_FILE_PATH):
+        with zipfile.ZipFile(ZIP_FILE_PATH, 'r') as zip_ref:
+            zip_ref.extract(MODEL_FILE_PATH)
+    else:
+        st.error(f"❌ Model ZIP file '{ZIP_FILE_PATH}' not found! Please check the path.")
+        st.stop()
+
+# Load the trained model
+with open(MODEL_FILE_PATH, "rb") as f:
     pipe_lr = pickle.load(f)
 
 # Emotion labels and emojis
 emotion_labels = {0: "joy", 1: "sadness", 2: "anger", 3: "fear", 4: "love", 5: "surprise"}
-emotions_emoji_dict = {"joy": "😊", "sadness": "😔", "anger": "😠", "fear": "😨", "love": "❤️", "surprise": "😮"}
+emotions_emoji_dict = {
+    "joy": "😊", "sadness": "😔", "anger": "😠",
+    "fear": "😨", "love": "❤️", "surprise": "😮"
+}
 
 # Prediction functions
-def predict_emotions(docx):
-    predicted_label = pipe_lr.predict([docx])[0]
+def predict_emotions(text):
+    predicted_label = pipe_lr.predict([text])[0]
     return emotion_labels.get(predicted_label, "Unknown")
 
-def get_prediction_proba(docx):
-    return pipe_lr.predict_proba([docx])
+def get_prediction_proba(text):
+    return pipe_lr.predict_proba([text])
 
 # Streamlit UI
 def main():
@@ -49,9 +67,8 @@ def main():
             proba_df_clean = proba_df.T.reset_index()
             proba_df_clean.columns = ["Emotion", "Probability"]
 
-            # Altair bar chart
             fig = alt.Chart(proba_df_clean).mark_bar().encode(
-                x=alt.X('Emotion', sort=None),
+                x='Emotion',
                 y='Probability',
                 color='Emotion'
             )
