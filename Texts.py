@@ -1,78 +1,79 @@
-import streamlit as st
-import pandas as pd
-import numpy as np
-import altair as alt
-import pickle
-import zipfile
 import os
+import streamlit as st
+import zipfile
+import requests
+import numpy as np
+import joblib
 
-# Define model file paths
-ZIP_FILE_PATH = "classifier_emotions_model.zip"
-MODEL_FILE_PATH = "classifier_emotions_model.pkl"
+# ✅ Model URL and Paths
+MODEL_ZIP_URL = "https://github.com/nikitamakwana0111/Emotion-Text/raw/main/classifier_emotions_model.zip"
+MODEL_ZIP_PATH = "classifier_emotions_model.zip"
+MODEL_DIR = "emotion_model"
+MODEL_FILE = "emotion_model/emotion_classifier.pkl"
 
-# Extract model from ZIP if necessary
-if not os.path.exists(MODEL_FILE_PATH):
-    if os.path.exists(ZIP_FILE_PATH):
-        with zipfile.ZipFile(ZIP_FILE_PATH, 'r') as zip_ref:
-            zip_ref.extract(MODEL_FILE_PATH)
+# ✅ Download Model
+def download_model():
+    if not os.path.exists(MODEL_DIR):
+        os.makedirs(MODEL_DIR)
+    try:
+        st.info("📥 Downloading Model...")
+        response = requests.get(MODEL_ZIP_URL, stream=True)
+        if response.status_code == 200:
+            with open(MODEL_ZIP_PATH, "wb") as f:
+                f.write(response.content)
+            st.success("✅ Model downloaded successfully!")
+        else:
+            st.error(f"❌ Model download failed! HTTP Error {response.status_code}")
+    except Exception as e:
+        st.error(f"❌ Error downloading model: {e}")
+
+# ✅ Extract Model
+def extract_model():
+    if not os.path.exists(MODEL_ZIP_PATH):
+        download_model()
+    try:
+        with zipfile.ZipFile(MODEL_ZIP_PATH, 'r') as zip_ref:
+            zip_ref.extractall(MODEL_DIR)
+        st.success("✅ Model extracted successfully!")
+    except zipfile.BadZipFile:
+        st.error("❌ Model file is corrupt! Please re-upload.")
+
+# ✅ Load Pre-trained Model
+def load_model():
+    try:
+        model = joblib.load(MODEL_FILE)
+        return model
+    except Exception as e:
+        st.error(f"❌ Error loading model: {e}")
+        return None
+
+# ✅ Emotion Prediction
+def predict_emotion(text, model):
+    emotions = ["anger", "fear", "joy", "love", "sadness", "surprise"]
+    probabilities = model.predict_proba([text])[0]
+    predicted_emotion = emotions[np.argmax(probabilities)]
+    return predicted_emotion, probabilities, emotions
+
+# ✅ Streamlit UI
+st.title("Analyze the Emotion Behind Your Text")
+text_input = st.text_area("Enter your text here:")
+
+if st.button("Analyze"):
+    extract_model()
+    model = load_model()
+    if text_input and model:
+        predicted_emotion, probabilities, emotions = predict_emotion(text_input, model)
+
+        # ✅ UI Layout
+        st.subheader("Original Text")
+        st.success(text_input)
+        
+        st.subheader("Prediction")
+        st.markdown(f"### {predicted_emotion} 😊")
+        st.write(f"**Confidence:** {round(max(probabilities), 4)}")
+
+        st.subheader("Prediction Probability")
+        proba_df = {emotions[i]: round(probabilities[i], 4) for i in range(len(emotions))}
+        st.write(proba_df)
     else:
-        st.error(f"❌ Model ZIP file '{ZIP_FILE_PATH}' not found! Please check the path.")
-        st.stop()
-
-# Load the trained model
-with open(MODEL_FILE_PATH, "rb") as f:
-    pipe_lr = pickle.load(f)
-
-# Emotion labels and emojis
-emotion_labels = {0: "joy", 1: "sadness", 2: "anger", 3: "fear", 4: "love", 5: "surprise"}
-emotions_emoji_dict = {
-    "joy": "😊", "sadness": "😔", "anger": "😠",
-    "fear": "😨", "love": "❤️", "surprise": "😮"
-}
-
-# Prediction functions
-def predict_emotions(text):
-    predicted_label = pipe_lr.predict([text])[0]
-    return emotion_labels.get(predicted_label, "Unknown")
-
-def get_prediction_proba(text):
-    return pipe_lr.predict_proba([text])
-
-# Streamlit UI
-def main():
-    st.title("Text Emotion Detection 🎭")
-    st.subheader("Analyze the emotion behind your text")
-
-    with st.form(key='emotion_form'):
-        raw_text = st.text_area("Enter your text here:")
-        submit_text = st.form_submit_button(label='Analyze')
-
-    if submit_text:
-        col1, col2 = st.columns(2)
-
-        prediction = predict_emotions(raw_text)
-        probability = get_prediction_proba(raw_text)
-
-        with col1:
-            st.success("Original Text")
-            st.write(raw_text)
-            st.success("Prediction")
-            emoji_icon = emotions_emoji_dict.get(prediction, "❓")
-            st.write(f"**{prediction}** {emoji_icon}")
-            st.write(f"Confidence: **{np.max(probability):.4f}**")
-
-        with col2:
-            st.success("Prediction Probability")
-            proba_df = pd.DataFrame(probability, columns=emotion_labels.values())
-            proba_df_clean = proba_df.T.reset_index()
-            proba_df_clean.columns = ["Emotion", "Probability"]
-
-            fig = alt.Chart(proba_df_clean).mark_bar().encode(
-                x='Emotion',
-                y='Probability',
-                color='Emotion'
-            )
-            st.altair_chart(fig, use_container_width=True)
-
-if __name__ == '__main__':
-    main()
+        st.warning("⚠️ Please enter some text!")
