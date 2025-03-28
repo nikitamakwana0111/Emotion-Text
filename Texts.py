@@ -9,7 +9,7 @@ import joblib
 MODEL_ZIP_URL = "https://github.com/nikitamakwana0111/Emotion-Text/raw/main/classifier_emotions_model.zip"
 MODEL_ZIP_PATH = "classifier_emotions_model.zip"
 MODEL_DIR = "emotion_model"
-MODEL_FILE = "emotion_model/emotion_classifier.pkl"
+MODEL_FILE = os.path.join(MODEL_DIR, "emotion_classifier.pkl")
 
 # ✅ Download Model
 def download_model():
@@ -41,7 +41,9 @@ def extract_model():
 # ✅ Load Pre-trained Model
 def load_model():
     try:
-        model = joblib.load(MODEL_FILE)
+        if not os.path.exists(MODEL_FILE):
+            extract_model()
+        model = joblib.load(MODEL_FILE)  # ✅ Use joblib instead of pickle
         return model
     except Exception as e:
         st.error(f"❌ Error loading model: {e}")
@@ -59,7 +61,6 @@ st.title("Analyze the Emotion Behind Your Text")
 text_input = st.text_area("Enter your text here:")
 
 if st.button("Analyze"):
-    extract_model()
     model = load_model()
     if text_input and model:
         predicted_emotion, probabilities, emotions = predict_emotion(text_input, model)
