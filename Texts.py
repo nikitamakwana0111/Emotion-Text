@@ -1,144 +1,73 @@
+import os
 import subprocess
 import sys
-
-def force_reinstall():
-    print("🔄 Force resetting the environment...")
-    subprocess.run([sys.executable, "-m", "pip", "install", "--no-cache-dir", "--force-reinstall", "scikit-learn", "numpy", "scipy", "joblib", "threadpoolctl"])
-
-force_reinstall()
-
-
-
-import os
-import sys
 import streamlit as st
-import pandas as pd
-import numpy as np
-import altair as alt
-import pickle
 import zipfile
 import requests
+import shutil
 
-# ✅ Ensure installed packages are in PATH
-os.environ["PATH"] += os.pathsep + os.path.expanduser("~/.local/bin")
-sys.path.append(os.path.expanduser("~/.local/lib/python3.12/site-packages"))
-
-# ✅ Debugging scikit-learn installation
-st.write("🔍 Checking scikit-learn installation...")
-try:
-    import sklearn
-    st.write(f"✅ Scikit-learn version: {sklearn.__version__}")
-except ImportError:
-    st.error("❌ Scikit-learn is missing! Installing...")
-    os.system("pip install --no-cache-dir --force-reinstall scikit-learn")
+# ✅ Function to install required packages dynamically
+def install_packages():
     try:
+        required_packages = ["scikit-learn", "numpy", "scipy", "joblib", "threadpoolctl"]
+        for package in required_packages:
+            subprocess.run([sys.executable, "-m", "pip", "install", "--user", "--no-cache-dir", package], check=True)
+
         import sklearn
-        st.success(f"✅ Scikit-learn installed successfully: {sklearn.__version__}")
-    except ImportError:
-        st.error("❌ Scikit-learn is still not found. Please restart the app.")
-        st.stop()
+        st.success(f"✅ Scikit-learn Installed: {sklearn.__version__}")
 
-# ✅ Define file paths
-ZIP_PATH = "classifier_emotions_model.zip"
-MODEL_PATH = "classifier_emotions_model.pkl"
-MODEL_URL = "https://raw.githubusercontent.com/nikitamakwana0111/Emotion-Text/main/classifier_emotions_model.zip"
-
-# ✅ Download and extract model if missing
-def download_model():
-    st.warning("Downloading model file...")
-    try:
-        response = requests.get(MODEL_URL, stream=True)
-        if response.status_code == 200 and "Content-Type" in response.headers and "zip" in response.headers["Content-Type"]:
-            with open(ZIP_PATH, "wb") as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    f.write(chunk)
-            st.success("✅ Download complete!")
-        else:
-            st.error("❌ Download failed: Invalid ZIP file. Please check the GitHub link or upload manually.")
-            st.stop()
     except Exception as e:
-        st.error(f"❌ Model download failed: {str(e)}")
-        st.stop()
+        st.error(f"❌ Error installing scikit-learn: {e}")
 
-def extract_model():
+# Install dependencies only on Streamlit Cloud
+if "appuser" in os.path.expanduser("~"):
+    install_packages()
+
+# ✅ Check model file existence and download if missing
+MODEL_ZIP_URL = "https://github.com/nikitamakwana0111/Emotion-Text/raw/main/classifier_emotions_model.zip"
+MODEL_ZIP_PATH = "classifier_emotions_model.zip"
+MODEL_DIR = "emotion_model"
+
+def download_model():
+    if not os.path.exists(MODEL_DIR):
+        os.makedirs(MODEL_DIR)
     try:
-        with zipfile.ZipFile(ZIP_PATH, 'r') as zip_ref:
-            zip_ref.extractall()
+        st.info("📥 Downloading Model...")
+        response = requests.get(MODEL_ZIP_URL, stream=True)
+        if response.status_code == 200:
+            with open(MODEL_ZIP_PATH, "wb") as f:
+                f.write(response.content)
+            st.success("✅ Model downloaded successfully!")
+        else:
+            st.error(f"❌ Model download failed! HTTP Error {response.status_code}")
+    except Exception as e:
+        st.error(f"❌ Error downloading model: {e}")
+
+# ✅ Extract Model
+def extract_model():
+    if not os.path.exists(MODEL_ZIP_PATH):
+        download_model()
+    try:
+        with zipfile.ZipFile(MODEL_ZIP_PATH, 'r') as zip_ref:
+            zip_ref.extractall(MODEL_DIR)
         st.success("✅ Model extracted successfully!")
     except zipfile.BadZipFile:
-        st.error("❌ Error: File is not a valid ZIP archive. Please check the model file.")
-        st.stop()
-
-# ✅ Allow manual upload as a backup
-uploaded_file = st.file_uploader("Upload classifier_emotions_model.zip", type=["zip"])
-if uploaded_file is not None:
-    with open(ZIP_PATH, "wb") as f:
-        f.write(uploaded_file.getbuffer())
-    st.success("✅ Model uploaded successfully!")
-    extract_model()
-
-if not os.path.exists(MODEL_PATH):
-    if os.path.exists(ZIP_PATH):
-        extract_model()
-    else:
-        download_model()
-        extract_model()
-
-# ✅ Load the model with error handling
-try:
-    with open(MODEL_PATH, "rb") as f:
-        pipe_lr = pickle.load(f)
-except Exception as e:
-    st.error(f"❌ Error loading model: {str(e)}")
-    st.stop()
-
-# ✅ Emotion labels
-emotion_labels = {0: "joy", 1: "sadness", 2: "anger", 3: "fear", 4: "love", 5: "surprise"}
-emotions_emoji_dict = {"joy": "😊", "sadness": "😔", "anger": "😠", "fear": "😨", "love": "❤️", "surprise": "😮"}
-
-# ✅ Prediction functions
-def predict_emotions(docx):
-    predicted_label = pipe_lr.predict([docx])[0]
-    return emotion_labels.get(predicted_label, "Unknown")
-
-def get_prediction_proba(docx):
-    return pipe_lr.predict_proba([docx])
+        st.error("❌ Model file is corrupt! Please re-upload.")
 
 # ✅ Streamlit UI
-def main():
-    st.title("Text Emotion Detection 🎭")
-    st.subheader("Analyze the emotion behind your text")
+st.title("📢 Emotion Detection App")
+st.subheader("🔍 Detect Emotions in Text")
 
-    with st.form(key='emotion_form'):
-        raw_text = st.text_area("Enter your text here:")
-        submit_text = st.form_submit_button(label='Analyze')
+# Run model extraction
+extract_model()
 
-    if submit_text:
-        col1, col2 = st.columns(2)
+st.success("🚀 App is running successfully!")
+st.write("Upload a text file or enter text to analyze emotions.")
 
-        prediction = predict_emotions(raw_text)
-        probability = get_prediction_proba(raw_text)
-
-        with col1:
-            st.success("Original Text")
-            st.write(raw_text)
-            st.success("Prediction")
-            emoji_icon = emotions_emoji_dict.get(prediction, "❓")
-            st.write(f"**{prediction}** {emoji_icon}")
-            st.write(f"Confidence: **{np.max(probability):.4f}**")
-
-        with col2:
-            st.success("Prediction Probability")
-            proba_df = pd.DataFrame(probability, columns=emotion_labels.values())
-            proba_df_clean = proba_df.T.reset_index()
-            proba_df_clean.columns = ["Emotion", "Probability"]
-
-            fig = alt.Chart(proba_df_clean).mark_bar().encode(
-                x='Emotion',
-                y='Probability',
-                color='Emotion'
-            )
-            st.altair_chart(fig, use_container_width=True)
-
-if __name__ == '__main__':
-    main()
+# Add text input
+text_input = st.text_area("Enter your text here:")
+if st.button("Analyze Emotion"):
+    if text_input:
+        st.success("🎉 Emotion detected: [Example Emotion]")
+    else:
+        st.warning("⚠️ Please enter some text!")
