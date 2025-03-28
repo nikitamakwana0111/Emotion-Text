@@ -1,3 +1,26 @@
+import subprocess
+import sys
+
+def clean_and_install():
+    print("🔍 Cleaning up corrupted installations...")
+
+    # Force uninstall any conflicting packages
+    packages = ["scikit-learn", "numpy", "scipy", "threadpoolctl", "joblib"]
+    for pkg in packages:
+        subprocess.run([sys.executable, "-m", "pip", "uninstall", "-y", pkg])
+
+    print("✅ Reinstalling required dependencies...")
+    subprocess.run([sys.executable, "-m", "pip", "install", "--no-cache-dir", "scikit-learn", "numpy", "scipy", "joblib", "threadpoolctl"])
+
+    try:
+        import sklearn
+        print(f"✅ Scikit-learn installed successfully: {sklearn.__version__}")
+    except ImportError:
+        print("❌ Scikit-learn installation failed! Please restart the app.")
+
+clean_and_install()
+
+
 import os
 import sys
 import streamlit as st
@@ -7,18 +30,6 @@ import altair as alt
 import pickle
 import zipfile
 import requests
-
-import subprocess
-import sys
-
-def debug_pip():
-    try:
-        result = subprocess.run([sys.executable, "-m", "pip", "list"], capture_output=True, text=True)
-        print("Installed packages:\n", result.stdout)
-    except Exception as e:
-        print("Error running pip list:", e)
-
-debug_pip()
 
 # ✅ Ensure installed packages are in PATH
 os.environ["PATH"] += os.pathsep + os.path.expanduser("~/.local/bin")
